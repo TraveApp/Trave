@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import Animated, { useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
 import { TouchableOpacity, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,11 +8,44 @@ import type { ThemeBase } from "../../themes";
 
 export default function Search({ navigation }: any) {
   const scheme = useColorScheme();
+  const [modeActive, setModeActive] = useState<"bus" | "train">("train");
+  const modeActiveOffset = useSharedValue(0);
+
+  const modeActiveStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: withSpring(modeActiveOffset.value * 50, {
+          damping: 200,
+          stiffness: 400,
+        }),
+      },
+    ],
+  }));
+
   return (
     <Main>
       <PageHeader>
         <PageTitle>Find a </PageTitle>
-        <PageTitleAccentColor>train</PageTitleAccentColor>
+        <PageTitleAccentColor>{modeActive}</PageTitleAccentColor>
+        <Mode>
+          <ModeIcon
+            onPress={() => {
+              modeActiveOffset.value = 0;
+              setModeActive("train");
+            }}
+          >
+            <Ionicons name="ios-train-sharp" size={24} color={scheme === "light" ? "#000" : "#FFF"} />
+          </ModeIcon>
+          <ModeIcon
+            onPress={() => {
+              modeActiveOffset.value = 1;
+              setModeActive("bus");
+            }}
+          >
+            <Ionicons name="bus" size={24} color={scheme === "light" ? "#000" : "#FFF"} />
+          </ModeIcon>
+          <ModeActive style={[modeActiveStyle]} />
+        </Mode>
       </PageHeader>
       <Options>
         <TouchableOpacity>
@@ -27,20 +61,13 @@ export default function Search({ navigation }: any) {
             <OptionContent>Pruszcz Oliwa</OptionContent>
           </OptionBody>
         </TouchableOpacity>
-        <OptionSmall activeOpacity={1}>
-          <CurrentLocal>
-            <Ionicons
-              name="ios-swap-horizontal"
-              size={24}
-              color={scheme === "light" ? "#FFF" : "#000"}
-            />
-          </CurrentLocal>
+        <OptionSmall activeOpacity={0.5}>
+          <OptionButton>
+            <Ionicons name="ios-swap-horizontal" size={24} color={scheme === "light" ? "#FFF" : "#000"} />
+          </OptionButton>
         </OptionSmall>
       </Options>
-      <SearchBtn
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate("Home")}
-      >
+      <SearchBtn activeOpacity={0.7} onPress={() => navigation.navigate("Home")}>
         <SearchBtnText>Search</SearchBtnText>
       </SearchBtn>
     </Main>
@@ -67,6 +94,36 @@ const PageTitleAccentColor = styled(PageTitle)`
   color: ${({ theme }: { theme: ThemeBase }) => theme.colors.primary};
 `;
 
+const Mode = styled.View`
+  position: absolute;
+  top: -10px;
+  right: 30px;
+  background: ${({ theme }: { theme: ThemeBase }) => theme.colors.card};
+  height: 50px;
+  width: 100px;
+  border-radius: 12.5px;
+  flex-direction: row;
+`;
+
+const ModeActive = styled(Animated.View)`
+  position: relative;
+  top: 5px;
+  right: 95px;
+  background: ${({ theme }: { theme: ThemeBase }) => theme.colors.foreground};
+  height: 40px;
+  width: 40px;
+  border-radius: 12.5px;
+  z-index: 2;
+`;
+
+const ModeIcon = styled.TouchableOpacity`
+  height: 50px;
+  width: 50px;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+`;
+
 const Options = styled.View`
   height: 160px;
   margin: 20px 30px;
@@ -78,7 +135,7 @@ const OptionsDivider = styled.View`
   position: absolute;
   top: 80px;
   left: 25px;
-  right: 25px;
+  right: 60px;
   height: 2px;
   opacity: 0.05;
   background: ${({ theme }: { theme: ThemeBase }) => theme.colors.text};
@@ -94,7 +151,7 @@ const OptionSmall = styled.TouchableOpacity`
   justify-content: center;
 `;
 
-const CurrentLocal = styled.View`
+const OptionButton = styled.View`
   height: 40px;
   width: 40px;
   border-radius: 12.5px;
