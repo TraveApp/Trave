@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import Animated, { useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
-import { TouchableOpacity, useColorScheme } from "react-native";
+import { TouchableOpacity, useColorScheme, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import styled from "styled-components/native";
 import type { ThemeBase } from "../../themes";
+import Suggestions from "./Suggestions";
 
 export default function Search({ navigation }: any) {
   const scheme = useColorScheme();
   const [modeActive, setModeActive] = useState<"bus" | "train">("train");
   const modeActiveOffset = useSharedValue(0);
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const modeActiveStyle = useAnimatedStyle(() => ({
     transform: [
@@ -48,7 +51,7 @@ export default function Search({ navigation }: any) {
         </Mode>
       </PageHeader>
       <Options>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowSuggestions(true)}>
           <OptionBody>
             <OptionTitle>From</OptionTitle>
             <OptionContent>Gdańsk Rotmanka</OptionContent>
@@ -70,6 +73,7 @@ export default function Search({ navigation }: any) {
       <SearchBtn activeOpacity={0.7} onPress={() => navigation.navigate("Home")}>
         <SearchBtnText>Search</SearchBtnText>
       </SearchBtn>
+      <Suggestions show={showSuggestions} onClose={() => setShowSuggestions(false)} />
     </Main>
   );
 }
