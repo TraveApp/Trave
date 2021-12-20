@@ -1,11 +1,16 @@
 import React, { useState } from "react";
-import Animated, { useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
+import Animated, {
+  useSharedValue,
+  withSpring,
+  useAnimatedStyle
+} from "react-native-reanimated";
 import { TouchableOpacity, useColorScheme, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import styled from "styled-components/native";
 import type { ThemeBase } from "../../themes";
 import Suggestions from "./Suggestions";
+import { stations as mockData } from "./mockData";
 
 export default function Search({ navigation }: any) {
   const scheme = useColorScheme();
@@ -13,6 +18,9 @@ export default function Search({ navigation }: any) {
   const modeActiveOffset = useSharedValue(0);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionsFor, setSuggestionsFor] = useState<"from" | "to">("from");
+  const [optionFrom, setOptionFrom] = useState({ name: "", id: -1 });
+  const [optionTo, setOptionTo] = useState({ name: "", id: -1 });
 
   const modeActiveStyle = useAnimatedStyle(() => ({
     transform: [
@@ -37,7 +45,11 @@ export default function Search({ navigation }: any) {
               setModeActive("train");
             }}
           >
-            <Ionicons name="ios-train-sharp" size={24} color={scheme === "light" ? "#000" : "#FFF"} />
+            <Ionicons
+              name="ios-train-sharp"
+              size={24}
+              color={scheme === "light" ? "#000" : "#FFF"}
+            />
           </ModeIcon>
           <ModeIcon
             onPress={() => {
@@ -45,35 +57,84 @@ export default function Search({ navigation }: any) {
               setModeActive("bus");
             }}
           >
-            <Ionicons name="bus" size={24} color={scheme === "light" ? "#000" : "#FFF"} />
+            <Ionicons
+              name="bus"
+              size={24}
+              color={scheme === "light" ? "#000" : "#FFF"}
+            />
           </ModeIcon>
           <ModeActive style={[modeActiveStyle]} />
         </Mode>
       </PageHeader>
       <Options>
-        <TouchableOpacity onPress={() => setShowSuggestions(true)}>
+        <TouchableOpacity
+          onPress={() => {
+            setSuggestionsFor("from");
+            setShowSuggestions(true);
+          }}
+        >
           <OptionBody>
-            <OptionTitle>From</OptionTitle>
-            <OptionContent>Gdańsk Rotmanka</OptionContent>
+            <OptionTitle empty={optionFrom.name === ""}>From</OptionTitle>
+            {optionFrom.name !== "" ? (
+              <Animated.View>
+                <OptionContent>{optionFrom.name}</OptionContent>
+              </Animated.View>
+            ) : (
+              <></>
+            )}
           </OptionBody>
         </TouchableOpacity>
         <OptionsDivider />
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            setSuggestionsFor("to");
+            setShowSuggestions(true);
+          }}
+        >
           <OptionBody>
-            <OptionTitle>To</OptionTitle>
-            <OptionContent>Pruszcz Oliwa</OptionContent>
+            <OptionTitle empty={optionTo.name === ""}>To</OptionTitle>
+            {optionTo.name !== "" ? (
+              <OptionContent>{optionTo.name}</OptionContent>
+            ) : (
+              <></>
+            )}
           </OptionBody>
         </TouchableOpacity>
-        <OptionSmall activeOpacity={0.5}>
+        <OptionSmall
+          activeOpacity={0.5}
+          onPress={() => {
+            const from = optionFrom;
+            setOptionFrom(optionTo);
+            setOptionTo(from);
+          }}
+        >
           <OptionButton>
-            <Ionicons name="ios-swap-horizontal" size={24} color={scheme === "light" ? "#FFF" : "#000"} />
+            <Ionicons
+              name="ios-swap-horizontal"
+              size={24}
+              color={scheme === "light" ? "#FFF" : "#000"}
+            />
           </OptionButton>
         </OptionSmall>
       </Options>
-      <SearchBtn activeOpacity={0.7} onPress={() => navigation.navigate("Home")}>
+      <SearchBtn
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate("Home")}
+      >
         <SearchBtnText>Search</SearchBtnText>
       </SearchBtn>
-      <Suggestions show={showSuggestions} onClose={() => setShowSuggestions(false)} />
+      <Suggestions
+        data={mockData}
+        history={[83, 1024, 512]}
+        show={showSuggestions}
+        onClose={() => setShowSuggestions(false)}
+        onSelect={(id: number) =>
+          (suggestionsFor === "from" ? setOptionFrom : setOptionTo)({
+            name: mockData.find((item: any) => item.id === id)!.name,
+            id,
+          })
+        }
+      />
     </Main>
   );
 }
@@ -169,8 +230,9 @@ const OptionBody = styled.View`
   justify-content: center;
 `;
 
-const OptionTitle = styled.Text`
+const OptionTitle = styled.Text<{ empty?: boolean; theme: ThemeBase }>`
   opacity: 0.5;
+  font-size: ${({ empty }: { empty?: boolean }) => (empty ? "18px" : "14px")};
   font-weight: 500;
   margin-left: 25px;
   color: ${({ theme }: { theme: ThemeBase }) => theme.colors.text};
