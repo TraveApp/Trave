@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import Animated, {
   useSharedValue,
   withSpring,
-  useAnimatedStyle
+  useAnimatedStyle,
 } from "react-native-reanimated";
-import { TouchableOpacity, useColorScheme, Text } from "react-native";
+import { TouchableOpacity, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import styled from "styled-components/native";
 import type { ThemeBase } from "../../themes";
 import Suggestions from "./Suggestions";
-import { stations as mockData } from "./mockData";
+import { StationData } from "./suggestionsData";
 
 export default function Search({ navigation }: any) {
   const scheme = useColorScheme();
@@ -43,6 +43,8 @@ export default function Search({ navigation }: any) {
             onPress={() => {
               modeActiveOffset.value = 0;
               setModeActive("train");
+              setOptionFrom({ name: "", id: -1 });
+              setOptionTo({ name: "", id: -1 });
             }}
           >
             <Ionicons
@@ -55,6 +57,8 @@ export default function Search({ navigation }: any) {
             onPress={() => {
               modeActiveOffset.value = 1;
               setModeActive("bus");
+              setOptionFrom({ name: "", id: -1 });
+              setOptionTo({ name: "", id: -1 });
             }}
           >
             <Ionicons
@@ -124,15 +128,12 @@ export default function Search({ navigation }: any) {
         <SearchBtnText>Search</SearchBtnText>
       </SearchBtn>
       <Suggestions
-        data={mockData}
-        history={[83, 1024, 512]}
+        type={modeActive}
         show={showSuggestions}
+        direction={suggestionsFor === "from" ? "SOURCE" : "DESTINATION"}
         onClose={() => setShowSuggestions(false)}
-        onSelect={(id: number) =>
-          (suggestionsFor === "from" ? setOptionFrom : setOptionTo)({
-            name: mockData.find((item: any) => item.id === id)!.name,
-            id,
-          })
+        onSelect={(item: StationData) =>
+          (suggestionsFor === "from" ? setOptionFrom : setOptionTo)(item)
         }
       />
     </Main>

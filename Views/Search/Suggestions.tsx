@@ -5,42 +5,76 @@ import type { ThemeBase } from "../../themes";
 import { Ionicons } from "@expo/vector-icons";
 import SuggestionsBackground from "./SuggestionsBackground";
 import SuggestionsHandle from "./SuggestionsHandle";
-import Fuse from "fuse.js";
+import {
+  BusSuggestions,
+  StationData,
+  TrainSuggestions,
+} from "./suggestionsData";
 
 export default function Suggestions({
-  data,
-  history,
   show,
+  type,
+  direction,
   onSelect,
   onClose,
 }: {
-  data: Array<{
-    id: number;
-    name: string;
-    region: string;
-  }>;
-  history: Array<number>;
   show: boolean;
-  onSelect: (id: number) => void;
+  type: "train" | "bus";
+  direction: "SOURCE" | "DESTINATION";
+  onSelect: (station: StationData) => void;
   onClose: () => void;
 }) {
   const theme = useTheme() as ThemeBase;
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = ["50%", "75%"];
 
+  const history = [7302, 7328, 7583]; // TODO: Load this from memory (prob based on type)
+
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => setSearchQuery(""), [show]);
 
-  const fuseIndex = useMemo(() => Fuse.createIndex(["name"], data), [data]);
-  const fuse = useMemo(
-    () => new Fuse(data, { includeScore: false, keys: ["name"] }, fuseIndex),
-    [fuseIndex]
+  const suggestionsProvider = useMemo(
+    () => (type === "train" ? new TrainSuggestions() : new BusSuggestions()),
+    [type]
   );
-  const searchResults = useMemo(
-    () => (searchQuery === "" ? [] : fuse.search(searchQuery)),
-    [searchQuery]
-  );
+
+  const [searchResults, setSearchResults] = useState<Array<StationData>>([]);
+  const [historyItems, setHisotryItems] = useState<Array<StationData>>([]);
+
+  useEffect(() => {
+    (async () => {
+      if (type === "train") {
+        setSearchResults(
+          await (suggestionsProvider as TrainSuggestions).getSearchResults(
+            searchQuery
+          )
+        );
+        setHisotryItems(
+          await Promise.all(
+            history.map(
+              async (id: number) =>
+                await (
+                  suggestionsProvider as TrainSuggestions
+                ).getHistoryItemById(id)
+            )
+          )
+        );
+      } else {
+        setSearchResults(
+          await suggestionsProvider.getSearchResults(searchQuery, direction)
+        );
+        setHisotryItems(
+          await Promise.all(
+            history.map(
+              async (id: number) =>
+                await suggestionsProvider.getHistoryItemById(id, direction)
+            )
+          )
+        );
+      }
+    })();
+  }, [searchQuery, type]);
 
   return show ? (
     <>
@@ -67,13 +101,13 @@ export default function Suggestions({
             onBlur={() => sheetRef.current?.snapToIndex(0)}
             onChangeText={(newSearchQuery) => setSearchQuery(newSearchQuery)}
           ></SearchField>
-          {history.length !== 0 && searchResults.length === 0 ? (
+          {searchQuery === "" ? (
             <History>
-              {history.map((item) => (
+              {historyItems.map((item) => (
                 <HistoryItem
-                  key={item}
-                  onPress={() => {
-                    onSelect(data[item].id);
+                  key={item.id}
+                  onPress={async () => {
+                    onSelect(item);
                     sheetRef.current?.close();
                   }}
                 >
@@ -83,8 +117,8 @@ export default function Suggestions({
                     color={!theme.dark ? "#000" : "#FFF"}
                   />
                   <HistoryItemContent>
-                    <HistoryItemName>{data[item].name}</HistoryItemName>
-                    <HistoryItemRegion>{data[item].region}</HistoryItemRegion>
+                    <HistoryItemName>{item.name}</HistoryItemName>
+                    <HistoryItemRegion>{item.region}</HistoryItemRegion>
                   </HistoryItemContent>
                   <HistoryItemRemove
                     name="ios-close"
@@ -99,9 +133,9 @@ export default function Suggestions({
               <Results>
                 {searchResults.slice(0, 10).map((item) => (
                   <Result
-                    key={item.item.id}
+                    key={item.id}
                     onPress={() => {
-                      onSelect(item.item.id);
+                      onSelect(item);
                       sheetRef.current?.close();
                     }}
                   >
@@ -111,8 +145,8 @@ export default function Suggestions({
                       color={!theme.dark ? "#000" : "#FFF"}
                     />
                     <ResultContent>
-                      <ResultName>{item.item.name}</ResultName>
-                      <ResultRegion>{item.item.region}</ResultRegion>
+                      <ResultName>{item.name}</ResultName>
+                      <ResultRegion>{item.region}</ResultRegion>
                     </ResultContent>
                   </Result>
                 ))}
