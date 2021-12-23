@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Animated, {
   useSharedValue,
   withSpring,
@@ -11,6 +11,7 @@ import styled from "styled-components/native";
 import type { ThemeBase } from "../../themes";
 import Suggestions from "./Suggestions";
 import { StationData } from "./suggestionsData";
+import { PanGestureHandler } from "react-native-gesture-handler";
 
 export default function Search({ navigation }: any) {
   const scheme = useColorScheme();
@@ -33,110 +34,130 @@ export default function Search({ navigation }: any) {
     ],
   }));
 
+  const switchToTrain = useMemo(
+    () => () => {
+      if (modeActive === "bus") {
+        modeActiveOffset.value = 0;
+        setModeActive("train");
+        setOptionFrom({ name: "", id: -1 });
+        setOptionTo({ name: "", id: -1 });
+      }
+    },
+    [modeActive]
+  );
+
+  const switchToBus = useMemo(
+    () => () => {
+      if (modeActive === "train") {
+        modeActiveOffset.value = 1;
+        setModeActive("bus");
+        setOptionFrom({ name: "", id: -1 });
+        setOptionTo({ name: "", id: -1 });
+      }
+    },
+    [modeActive]
+  );
+
   return (
-    <Main>
-      <PageHeader>
-        <PageTitle>Find a </PageTitle>
-        <PageTitleAccentColor>{modeActive}</PageTitleAccentColor>
-        <Mode>
-          <ModeIcon
-            onPress={() => {
-              modeActiveOffset.value = 0;
-              setModeActive("train");
-              setOptionFrom({ name: "", id: -1 });
-              setOptionTo({ name: "", id: -1 });
-            }}
-          >
-            <Ionicons
-              name="ios-train-sharp"
-              size={24}
-              color={scheme === "light" ? "#000" : "#FFF"}
-            />
-          </ModeIcon>
-          <ModeIcon
-            onPress={() => {
-              modeActiveOffset.value = 1;
-              setModeActive("bus");
-              setOptionFrom({ name: "", id: -1 });
-              setOptionTo({ name: "", id: -1 });
-            }}
-          >
-            <Ionicons
-              name="bus"
-              size={24}
-              color={scheme === "light" ? "#000" : "#FFF"}
-            />
-          </ModeIcon>
-          <ModeActive style={[modeActiveStyle]} />
-        </Mode>
-      </PageHeader>
-      <Options>
-        <TouchableOpacity
-          onPress={() => {
-            setSuggestionsFor("from");
-            setShowSuggestions(true);
-          }}
-        >
-          <OptionBody>
-            <OptionTitle empty={optionFrom.name === ""}>From</OptionTitle>
-            {optionFrom.name !== "" ? (
-              <Animated.View>
-                <OptionContent>{optionFrom.name}</OptionContent>
-              </Animated.View>
-            ) : (
-              <></>
-            )}
-          </OptionBody>
-        </TouchableOpacity>
-        <OptionsDivider />
-        <TouchableOpacity
-          onPress={() => {
-            setSuggestionsFor("to");
-            setShowSuggestions(true);
-          }}
-        >
-          <OptionBody>
-            <OptionTitle empty={optionTo.name === ""}>To</OptionTitle>
-            {optionTo.name !== "" ? (
-              <OptionContent>{optionTo.name}</OptionContent>
-            ) : (
-              <></>
-            )}
-          </OptionBody>
-        </TouchableOpacity>
-        <OptionSmall
-          activeOpacity={0.5}
-          onPress={() => {
-            const from = optionFrom;
-            setOptionFrom(optionTo);
-            setOptionTo(from);
-          }}
-        >
-          <OptionButton>
-            <Ionicons
-              name="ios-swap-horizontal"
-              size={24}
-              color={scheme === "light" ? "#FFF" : "#000"}
-            />
-          </OptionButton>
-        </OptionSmall>
-      </Options>
-      <SearchBtn
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate("Home")}
-      >
-        <SearchBtnText>Search</SearchBtnText>
-      </SearchBtn>
-      <Suggestions
-        type={modeActive}
-        show={showSuggestions}
-        direction={suggestionsFor === "from" ? "SOURCE" : "DESTINATION"}
-        onClose={() => setShowSuggestions(false)}
-        onSelect={(item: StationData) =>
-          (suggestionsFor === "from" ? setOptionFrom : setOptionTo)(item)
+    <PanGestureHandler
+      onGestureEvent={(e) => {
+        if (e.nativeEvent.translationX > 100) {
+          switchToTrain();
+        } else if (-e.nativeEvent.translationX > 100) {
+          switchToBus();
         }
-      />
-    </Main>
+      }}
+    >
+      <Main>
+        <PageHeader>
+          <PageTitle>Find a </PageTitle>
+          <PageTitleAccentColor>{modeActive}</PageTitleAccentColor>
+          <Mode>
+            <ModeIcon onPress={() => switchToTrain()}>
+              <Ionicons
+                name="ios-train-sharp"
+                size={24}
+                color={scheme === "light" ? "#000" : "#FFF"}
+              />
+            </ModeIcon>
+            <ModeIcon onPress={() => switchToBus()}>
+              <Ionicons
+                name="bus"
+                size={24}
+                color={scheme === "light" ? "#000" : "#FFF"}
+              />
+            </ModeIcon>
+            <ModeActive style={[modeActiveStyle]} />
+          </Mode>
+        </PageHeader>
+        <Options>
+          <TouchableOpacity
+            onPress={() => {
+              setSuggestionsFor("from");
+              setShowSuggestions(true);
+            }}
+          >
+            <OptionBody>
+              <OptionTitle empty={optionFrom.name === ""}>From</OptionTitle>
+              {optionFrom.name !== "" ? (
+                <Animated.View>
+                  <OptionContent>{optionFrom.name}</OptionContent>
+                </Animated.View>
+              ) : (
+                <></>
+              )}
+            </OptionBody>
+          </TouchableOpacity>
+          <OptionsDivider />
+          <TouchableOpacity
+            onPress={() => {
+              setSuggestionsFor("to");
+              setShowSuggestions(true);
+            }}
+          >
+            <OptionBody>
+              <OptionTitle empty={optionTo.name === ""}>To</OptionTitle>
+              {optionTo.name !== "" ? (
+                <OptionContent>{optionTo.name}</OptionContent>
+              ) : (
+                <></>
+              )}
+            </OptionBody>
+          </TouchableOpacity>
+          <OptionSmall
+            activeOpacity={0.5}
+            onPress={() => {
+              const from = optionFrom;
+              setOptionFrom(optionTo);
+              setOptionTo(from);
+            }}
+          >
+            <OptionButton>
+              <Ionicons
+                name="ios-swap-horizontal"
+                size={24}
+                color={scheme === "light" ? "#FFF" : "#000"}
+              />
+            </OptionButton>
+          </OptionSmall>
+        </Options>
+        <SearchBtn
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("Home")}
+        >
+          <SearchBtnText>Search</SearchBtnText>
+        </SearchBtn>
+        <Suggestions
+          type={modeActive}
+          show={showSuggestions}
+          direction={suggestionsFor === "from" ? "SOURCE" : "DESTINATION"}
+          onClose={() => setShowSuggestions(false)}
+          onSelect={(item: StationData) =>
+            (suggestionsFor === "from" ? setOptionFrom : setOptionTo)(item)
+          }
+        />
+      </Main>
+    </PanGestureHandler>
   );
 }
 
