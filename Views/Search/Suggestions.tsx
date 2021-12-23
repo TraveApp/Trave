@@ -1,5 +1,6 @@
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Platform, ScrollView, View } from 'react-native';
 import styled, { useTheme } from "styled-components/native";
 import type { ThemeBase } from "../../themes";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,6 +28,7 @@ export default function Suggestions({
   const theme = useTheme() as ThemeBase;
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = ["50%", "75%"];
+  const [currentSnapPoint, setCurrentSnapPoint] = useState(0);
 
   const history = [7302, 7328, 7583]; // TODO: Load this from memory (prob based on type)
 
@@ -86,6 +88,7 @@ export default function Suggestions({
         handleComponent={SuggestionsHandle as any}
         onChange={(idx: number) => {
           if (idx === -1) onClose();
+          setCurrentSnapPoint(idx);
         }}
       >
         <Main>
@@ -102,7 +105,7 @@ export default function Suggestions({
             onChangeText={(newSearchQuery) => setSearchQuery(newSearchQuery)}
           ></SearchField>
           {searchQuery === "" ? (
-            <History>
+            <History {...(Platform.OS === "ios" ? {contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 }, automaticallyAdjustContentInsets: false} : {})}>
               {historyItems.map((item) => (
                 <HistoryItem
                   key={item.id}
@@ -130,20 +133,20 @@ export default function Suggestions({
             </History>
           ) : (
             <>
-              <Results>
+              <Results {...(Platform.OS === "ios" ? {contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 }, automaticallyAdjustContentInsets: false} : {})}>
                 {searchResults.slice(0, 10).map((item) => (
                   <Result
-                    key={item.id}
-                    onPress={() => {
-                      onSelect(item);
-                      sheetRef.current?.close();
-                    }}
+                  key={item.id}
+                  onPress={() => {
+                    onSelect(item);
+                    sheetRef.current?.close();
+                  }}
                   >
                     <Ionicons
-                      name="ios-train"
+                      name={type === "train" ? "ios-train" : "ios-bus"}
                       size={20}
                       color={!theme.dark ? "#000" : "#FFF"}
-                    />
+                      />
                     <ResultContent>
                       <ResultName>{item.name}</ResultName>
                       <ResultRegion>{item.region}</ResultRegion>
@@ -161,7 +164,7 @@ export default function Suggestions({
   );
 }
 
-const Main = styled(BottomSheetView)`
+const Main = styled(Platform.OS === "ios" ? BottomSheetView : BottomSheetScrollView)`
   flex: 1;
 `;
 
@@ -175,7 +178,7 @@ const SearchField = styled.TextInput`
   background: ${({ theme }: { theme: ThemeBase }) => theme.colors.background};
 `;
 
-const History = styled.ScrollView`
+const History = styled(Platform.OS === "ios" ? ScrollView : View)`
   flex: 1;
 `;
 

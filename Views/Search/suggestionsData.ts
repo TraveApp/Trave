@@ -1,6 +1,4 @@
-import Fuse from "fuse.js";
-import { stations } from "./mockData";
-import { EpodroznikSDK } from "epodroznik-sdk";
+// import { EpodroznikSDK } from "epodroznik-sdk";
 
 export interface StationData {
   id: number;
@@ -8,48 +6,45 @@ export interface StationData {
   region: string;
 }
 
-export class TrainSuggestions {
-  private readonly fuse;
-  constructor() {
-    this.fuse = new Fuse(stations as Array<StationData>, {
-      includeScore: false,
-      keys: ["name"],
-    });
-  }
-  public async getSearchResults(query: string) {
-    return this.fuse.search(query).map((item) => item.item);
-  }
-  public async getHistoryItemById(id: number) {
-    return stations.find((station: any) => station.id === id);
-  }
-}
-
-export class BusSuggestions {
-  private readonly client;
-  constructor() {
-    this.client = new EpodroznikSDK();
-  }
-  public async getSearchResults(query: string, type: "SOURCE" | "DESTINATION") {
+abstract class SuggestionsBase {
+  private readonly baseUrl = "https://trave-api.herokuapp.com/api/v1/";
+  protected async request(
+    endpoint: string,
+    params:
+      | { query: string; type?: "source" | "destination" }
+      | { id: string; type?: "source" | "destination" }
+  ) {
+    const req = await fetch(
+      `${this.baseUrl}${endpoint}?${new URLSearchParams(params)}`
+    );
     try {
-      const stationsFromEp = (
-        await this.client.getSuggestions(query, ["STOPS"], type)
-      ).matches;
-      return stationsFromEp.map((station) => ({
-        id: station.dbId,
-        name: station.name,
-        region: station.city,
-      })) as Array<StationData>;
-    } catch (e: any) {
-      console.log(e.message);
+      return await req.json();
+    } catch {
       return [];
     }
   }
+}
+
+export class TrainSuggestions extends SuggestionsBase {
+  public async getSearchResults(query: string) {
+    return await this.request("train/search", { query });
+  }
+  public async getHistoryItemById(id: number) {
+    return await this.request("train/station", { id: id.toString() });
+  }
+}
+
+export class BusSuggestions extends SuggestionsBase {
+  public async getSearchResults(query: string, type: "SOURCE" | "DESTINATION") {
+    return await this.request("bus/search", {
+      query,
+      type: type.toLowerCase() as any,
+    });
+  }
   public async getHistoryItemById(id: number, type: "SOURCE" | "DESTINATION") {
-    // TODO: Implement this!!!
-    return {
-      id: Math.random() * 1000000,
-      name: "TODO",
-      region: "TODO",
-    } as StationData;
+    return await this.request("bus/station", {
+      id: id.toString(),
+      type: type.toLowerCase() as any,
+    });
   }
 }
