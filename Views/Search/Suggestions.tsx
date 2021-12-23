@@ -1,16 +1,14 @@
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import styled, { useTheme } from "styled-components/native";
 import type { ThemeBase } from "../../themes";
 import { Ionicons } from "@expo/vector-icons";
 import SuggestionsBackground from "./SuggestionsBackground";
 import SuggestionsHandle from "./SuggestionsHandle";
-import {
-  BusSuggestions,
-  StationData,
-  TrainSuggestions,
-} from "./suggestionsData";
+import { BusSuggestions, StationData, TrainSuggestions } from "./suggestionsData";
+import { locate } from "./Locate";
+import * as Location from "expo-location";
 
 export default function Suggestions({
   show,
@@ -36,10 +34,7 @@ export default function Suggestions({
 
   useEffect(() => setSearchQuery(""), [show]);
 
-  const suggestionsProvider = useMemo(
-    () => (type === "train" ? new TrainSuggestions() : new BusSuggestions()),
-    [type]
-  );
+  const suggestionsProvider = useMemo(() => (type === "train" ? new TrainSuggestions() : new BusSuggestions()), [type]);
 
   const [searchResults, setSearchResults] = useState<Array<StationData>>([]);
   const [historyItems, setHisotryItems] = useState<Array<StationData>>([]);
@@ -47,31 +42,17 @@ export default function Suggestions({
   useEffect(() => {
     (async () => {
       if (type === "train") {
-        setSearchResults(
-          await (suggestionsProvider as TrainSuggestions).getSearchResults(
-            searchQuery
-          )
-        );
+        setSearchResults(await (suggestionsProvider as TrainSuggestions).getSearchResults(searchQuery));
         setHisotryItems(
           await Promise.all(
-            history.map(
-              async (id: number) =>
-                await (
-                  suggestionsProvider as TrainSuggestions
-                ).getHistoryItemById(id)
-            )
+            history.map(async (id: number) => await (suggestionsProvider as TrainSuggestions).getHistoryItemById(id))
           )
         );
       } else {
-        setSearchResults(
-          await suggestionsProvider.getSearchResults(searchQuery, direction)
-        );
+        setSearchResults(await suggestionsProvider.getSearchResults(searchQuery, direction));
         setHisotryItems(
           await Promise.all(
-            history.map(
-              async (id: number) =>
-                await suggestionsProvider.getHistoryItemById(id, direction)
-            )
+            history.map(async (id: number) => await suggestionsProvider.getHistoryItemById(id, direction))
           )
         );
       }
@@ -92,20 +73,54 @@ export default function Suggestions({
         }}
       >
         <Main>
-          <SearchField
-            editable
-            textContentType="addressCity"
-            clearButtonMode="always"
-            spellCheck={false}
-            autoCorrect={false}
-            placeholderTextColor={"#666"}
-            placeholder="Search for a station"
-            onFocus={() => sheetRef.current?.snapToIndex(1)}
-            onBlur={() => sheetRef.current?.snapToIndex(0)}
-            onChangeText={(newSearchQuery) => setSearchQuery(newSearchQuery)}
-          ></SearchField>
+          <View style={{ flexDirection: "row" }}>
+            <SearchField
+              editable
+              textContentType="addressCity"
+              clearButtonMode="never"
+              spellCheck={false}
+              autoCorrect={false}
+              placeholderTextColor={"#666"}
+              placeholder="Search for a station"
+              onFocus={() => sheetRef.current?.snapToIndex(1)}
+              onBlur={() => sheetRef.current?.snapToIndex(0)}
+              onChangeText={(newSearchQuery) => setSearchQuery(newSearchQuery)}
+            ></SearchField>
+            <LocateButton>
+              <TouchableOpacity
+                onPress={async () => {
+                  const { status } = await Location.requestForegroundPermissionsAsync();
+
+                  if (status !== "granted") {
+                    // TODO: error("Permission to access location was denied");
+                    return;
+                  }
+
+                  const location = await Location.getCurrentPositionAsync({});
+                  onSelect(
+                    await locate(
+                      `${type}/findbylocation`,
+                      location.coords.latitude,
+                      location.coords.longitude,
+                      direction
+                    )
+                  );
+                  sheetRef.current?.close();
+                }}
+              >
+                <Ionicons name="ios-locate-outline" size={20} color={!theme.dark ? theme.colors.primary : "#fff"} />
+              </TouchableOpacity>
+            </LocateButton>
+          </View>
           {searchQuery === "" ? (
-            <History {...(Platform.OS === "ios" ? {contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 }, automaticallyAdjustContentInsets: false} : {})}>
+            <History
+              {...(Platform.OS === "ios"
+                ? {
+                    contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 },
+                    automaticallyAdjustContentInsets: false,
+                  }
+                : {})}
+            >
               {historyItems.map((item) => (
                 <HistoryItem
                   key={item.id}
@@ -114,39 +129,38 @@ export default function Suggestions({
                     sheetRef.current?.close();
                   }}
                 >
-                  <Ionicons
-                    name="ios-time-outline"
-                    size={20}
-                    color={!theme.dark ? "#000" : "#FFF"}
-                  />
+                  <Ionicons name="ios-time-outline" size={20} color={!theme.dark ? "#000" : "#FFF"} />
                   <HistoryItemContent>
                     <HistoryItemName>{item.name}</HistoryItemName>
                     <HistoryItemRegion>{item.region}</HistoryItemRegion>
                   </HistoryItemContent>
-                  <HistoryItemRemove
-                    name="ios-close"
-                    size={20}
-                    color={!theme.dark ? theme.colors.primary : "#FFF"}
-                  />
+                  <HistoryItemRemove name="ios-close" size={20} color={!theme.dark ? theme.colors.primary : "#FFF"} />
                 </HistoryItem>
               ))}
             </History>
           ) : (
             <>
-              <Results {...(Platform.OS === "ios" ? {contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 }, automaticallyAdjustContentInsets: false} : {})}>
+              <Results
+                {...(Platform.OS === "ios"
+                  ? {
+                      contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 },
+                      automaticallyAdjustContentInsets: false,
+                    }
+                  : {})}
+              >
                 {searchResults.slice(0, 10).map((item) => (
                   <Result
-                  key={item.id}
-                  onPress={() => {
-                    onSelect(item);
-                    sheetRef.current?.close();
-                  }}
+                    key={item.id}
+                    onPress={() => {
+                      onSelect(item);
+                      sheetRef.current?.close();
+                    }}
                   >
                     <Ionicons
                       name={type === "train" ? "ios-train" : "ios-bus"}
                       size={20}
                       color={!theme.dark ? "#000" : "#FFF"}
-                      />
+                    />
                     <ResultContent>
                       <ResultName>{item.name}</ResultName>
                       <ResultRegion>{item.region}</ResultRegion>
@@ -168,12 +182,25 @@ const Main = styled(Platform.OS === "ios" ? BottomSheetView : BottomSheetScrollV
   flex: 1;
 `;
 
+const LocateButton = styled.View`
+  margin-left: 0;
+  margin-right: 20px;
+  height: 40px;
+  width: 40px;
+  padding-top: 10px;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  background: ${({ theme }: { theme: ThemeBase }) => theme.colors.background};
+`;
+
 const SearchField = styled.TextInput`
-  margin: 0px 20px;
+  margin-left: 20px;
   margin-bottom: 10px;
   padding: 0px 20px;
+  flex: 1;
   height: 40px;
-  border-radius: 10px;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
   color: ${({ theme }: { theme: ThemeBase }) => theme.colors.text};
   background: ${({ theme }: { theme: ThemeBase }) => theme.colors.background};
 `;
