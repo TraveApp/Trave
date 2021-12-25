@@ -9,7 +9,7 @@ export default function Home({ navigation }: any) {
       <PageTitle>Home Screen</PageTitle>
       <Button
         title="Go to Details"
-        onPress={() => navigation.navigate("NotHome")}
+        onPress={() => navigation.navigate("Search")}
       />
     </View>
   );

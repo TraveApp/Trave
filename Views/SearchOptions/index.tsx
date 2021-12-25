@@ -13,7 +13,7 @@ import Suggestions from "./Suggestions";
 import { StationData } from "./suggestionsData";
 import { PanGestureHandler } from "react-native-gesture-handler";
 
-export default function Search({ navigation }: any) {
+export default function SearchOptions({ navigation }: any) {
   const scheme = useColorScheme();
   const [modeActive, setModeActive] = useState<"bus" | "train">("train");
   const modeActiveOffset = useSharedValue(0);
@@ -143,7 +143,7 @@ export default function Search({ navigation }: any) {
         </Options>
         <SearchBtn
           activeOpacity={0.7}
-          onPress={() => navigation.navigate("Home")}
+          onPress={() => navigation.navigate("SearchResults")}
         >
           <SearchBtnText>Search</SearchBtnText>
         </SearchBtn>
