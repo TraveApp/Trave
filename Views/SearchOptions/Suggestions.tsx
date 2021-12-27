@@ -1,4 +1,7 @@
-import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, {
+  BottomSheetScrollView,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import styled, { useTheme } from "styled-components/native";
@@ -6,9 +9,14 @@ import type { ThemeBase } from "../../themes";
 import { Ionicons } from "@expo/vector-icons";
 import SuggestionsBackground from "./SuggestionsBackground";
 import SuggestionsHandle from "./SuggestionsHandle";
-import { BusSuggestions, StationData, TrainSuggestions } from "./suggestionsData";
+import {
+  BusSuggestions,
+  StationData,
+  TrainSuggestions,
+} from "./suggestionsData";
 import { locate } from "./Locate";
 import * as Location from "expo-location";
+import { useStorage } from "../../hooks/useStorage";
 
 export default function Suggestions({
   show,
@@ -28,13 +36,19 @@ export default function Suggestions({
   const snapPoints = ["50%", "75%"];
   const [currentSnapPoint, setCurrentSnapPoint] = useState(0);
 
-  const history = [7302, 7328, 7583]; // TODO: Load this from memory (prob based on type)
+  const trainHistory = useStorage<number[]>(`history-train`, []);
+  const busHistory = useStorage<number[]>(`history-bus`, []);
+
+  const [history, setHistory] = type === "train" ? trainHistory : busHistory;
 
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => setSearchQuery(""), [show]);
 
-  const suggestionsProvider = useMemo(() => (type === "train" ? new TrainSuggestions() : new BusSuggestions()), [type]);
+  const suggestionsProvider = useMemo(
+    () => (type === "train" ? new TrainSuggestions() : new BusSuggestions()),
+    [type]
+  );
 
   const [searchResults, setSearchResults] = useState<Array<StationData>>([]);
   const [historyItems, setHisotryItems] = useState<Array<StationData>>([]);
@@ -42,22 +56,36 @@ export default function Suggestions({
   useEffect(() => {
     (async () => {
       if (type === "train") {
-        setSearchResults(await (suggestionsProvider as TrainSuggestions).getSearchResults(searchQuery));
+        setSearchResults(
+          await (suggestionsProvider as TrainSuggestions).getSearchResults(
+            searchQuery
+          )
+        );
         setHisotryItems(
           await Promise.all(
-            history.map(async (id: number) => await (suggestionsProvider as TrainSuggestions).getHistoryItemById(id))
+            history.map(
+              async (id: number) =>
+                await (
+                  suggestionsProvider as TrainSuggestions
+                ).getHistoryItemById(id)
+            )
           )
         );
       } else {
-        setSearchResults(await suggestionsProvider.getSearchResults(searchQuery, direction));
+        setSearchResults(
+          await suggestionsProvider.getSearchResults(searchQuery, direction)
+        );
         setHisotryItems(
           await Promise.all(
-            history.map(async (id: number) => await suggestionsProvider.getHistoryItemById(id, direction))
+            history.map(
+              async (id: number) =>
+                await suggestionsProvider.getHistoryItemById(id, direction)
+            )
           )
         );
       }
     })();
-  }, [searchQuery, type]);
+  }, [history, searchQuery, type]);
 
   return show ? (
     <>
@@ -89,7 +117,8 @@ export default function Suggestions({
             <LocateButton>
               <TouchableOpacity
                 onPress={async () => {
-                  const { status } = await Location.requestForegroundPermissionsAsync();
+                  const { status } =
+                    await Location.requestForegroundPermissionsAsync();
 
                   if (status !== "granted") {
                     // TODO: error("Permission to access location was denied");
@@ -97,18 +126,25 @@ export default function Suggestions({
                   }
 
                   const location = await Location.getCurrentPositionAsync({});
-                  onSelect(
-                    await locate(
-                      `${type}/findbylocation`,
-                      location.coords.latitude,
-                      location.coords.longitude,
-                      direction
-                    )
+                  const station = await locate(
+                    `${type}/findbylocation`,
+                    location.coords.latitude,
+                    location.coords.longitude,
+                    direction
                   );
+                  setHistory([
+                    station.id,
+                    ...history.filter((id) => id !== station.id),
+                  ]);
+                  onSelect(station);
                   sheetRef.current?.close();
                 }}
               >
-                <Ionicons name="ios-locate-outline" size={20} color={!theme.dark ? theme.colors.primary : "#fff"} />
+                <Ionicons
+                  name="ios-locate-outline"
+                  size={20}
+                  color={!theme.dark ? theme.colors.primary : "#fff"}
+                />
               </TouchableOpacity>
             </LocateButton>
           </View>
@@ -125,16 +161,33 @@ export default function Suggestions({
                 <HistoryItem
                   key={item.id}
                   onPress={async () => {
+                    setHistory([
+                      item.id,
+                      ...history.filter((id) => id !== item.id),
+                    ]);
                     onSelect(item);
                     sheetRef.current?.close();
                   }}
                 >
-                  <Ionicons name="ios-time-outline" size={20} color={!theme.dark ? "#000" : "#FFF"} />
+                  <Ionicons
+                    name="ios-time-outline"
+                    size={20}
+                    color={!theme.dark ? "#000" : "#FFF"}
+                  />
                   <HistoryItemContent>
                     <HistoryItemName>{item.name}</HistoryItemName>
                     <HistoryItemRegion>{item.region}</HistoryItemRegion>
                   </HistoryItemContent>
-                  <HistoryItemRemove name="ios-close" size={20} color={!theme.dark ? theme.colors.primary : "#FFF"} />
+                  <HistoryItemRemove
+                    onPress={() =>
+                      setHistory(
+                        history.filter((historyItem) => historyItem !== item.id)
+                      )
+                    }
+                    name="ios-close"
+                    size={20}
+                    color={!theme.dark ? theme.colors.primary : "#FFF"}
+                  />
                 </HistoryItem>
               ))}
             </History>
@@ -143,7 +196,9 @@ export default function Suggestions({
               <Results
                 {...(Platform.OS === "ios"
                   ? {
-                      contentInset: { bottom: currentSnapPoint === 0 ? 220 : 10 },
+                      contentInset: {
+                        bottom: currentSnapPoint === 0 ? 220 : 10,
+                      },
                       automaticallyAdjustContentInsets: false,
                     }
                   : {})}
@@ -152,6 +207,10 @@ export default function Suggestions({
                   <Result
                     key={item.id}
                     onPress={() => {
+                      setHistory([
+                        item.id,
+                        ...history.filter((id) => id !== item.id),
+                      ]);
                       onSelect(item);
                       sheetRef.current?.close();
                     }}
@@ -178,7 +237,9 @@ export default function Suggestions({
   );
 }
 
-const Main = styled(Platform.OS === "ios" ? BottomSheetView : BottomSheetScrollView)`
+const Main = styled(
+  Platform.OS === "ios" ? BottomSheetView : BottomSheetScrollView
+)`
   flex: 1;
 `;
 

@@ -1,18 +1,57 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components/native";
 import { ThemeBase } from "../../themes";
-import { Platform, useColorScheme, Text } from "react-native";
+import { useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
 
-export default function TrainCard() {
+dayjs.extend(duration);
+dayjs.extend(relativeTime);
+
+export default function TrainCard({
+  stations,
+  dateFrom,
+  dateTo,
+  delay,
+  changes,
+}: {
+  stations: string;
+  dateFrom: Date;
+  dateTo: Date;
+  delay: number;
+  changes: number;
+}) {
   const scheme = useColorScheme();
+  const [message, setMessage] = useState("");
+
+  const updateMessage = () =>
+    setMessage(
+      dayjs
+        .duration(
+          dayjs(dayjs().isBefore(dateFrom) ? dateFrom : dateTo)
+            .add(delay, "m")
+            .diff()
+        )
+        .humanize(true)
+    );
+
+  useEffect(() => {
+    updateMessage();
+    const intervalId = setInterval(updateMessage, 1000 * 30);
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
     <Main activeOpacity={0.7}>
-      <Departure>Departure in: 4 hours, 6 minutes</Departure>
-      <Stations>Pruszcz Gdański - Gdańsk Oliwa</Stations>
+      <Message>{message}</Message>
+      <Stations>{stations}</Stations>
       <TimeContainer>
-        <Time>06:21 - 06:43</Time>
-        <Delay>+5 min</Delay>
+        <Time>
+          {dayjs(dateFrom).format("HH:mm")} - {dayjs(dateTo).format("HH:mm")}
+        </Time>
+        <Delay style={{ opacity: delay ? 1 : 0 }}>+{delay} min</Delay>
       </TimeContainer>
       <Info>
         <Ionicons
@@ -20,14 +59,16 @@ export default function TrainCard() {
           size={18}
           color={scheme === "light" ? "#000" : "#FFF"}
         />
-        <InfoText>22 minutes</InfoText>
+        <InfoText>
+          {dayjs.duration(dayjs(dateTo).diff(dateFrom)).humanize()}
+        </InfoText>
         <Ionicons
           style={{ marginLeft: 20 }}
           name="ios-swap-horizontal-outline"
           size={18}
           color={scheme === "light" ? "#000" : "#FFF"}
         />
-        <InfoText>0 changes</InfoText>
+        <InfoText>{changes === 1 ? `1 change` : `${changes} changes`}</InfoText>
       </Info>
     </Main>
   );
@@ -39,7 +80,7 @@ const Main = styled.TouchableOpacity`
   border-radius: 15px;
 `;
 
-const Departure = styled.Text`
+const Message = styled.Text`
   font-size: 14px;
   color: ${({ theme }: { theme: ThemeBase }) => theme.colors.text};
   opacity: 0.5;

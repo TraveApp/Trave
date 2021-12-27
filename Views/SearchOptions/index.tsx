@@ -4,7 +4,7 @@ import Animated, {
   withSpring,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import { TouchableOpacity, useColorScheme } from "react-native";
+import { TouchableOpacity, useColorScheme, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import styled from "styled-components/native";
@@ -143,7 +143,21 @@ export default function SearchOptions({ navigation }: any) {
         </Options>
         <SearchBtn
           activeOpacity={0.7}
-          onPress={() => navigation.navigate("SearchResults")}
+          onPress={
+            optionFrom.id === -1 || optionTo.id === -1
+              ? () =>
+                  Alert.alert(
+                    "Nothing to search for",
+                    "You must select the stations first!"
+                  )
+              : () =>
+                  navigation.navigate("SearchResults", {
+                    date: new Date().toISOString(),
+                    type: modeActive,
+                    from: optionFrom,
+                    to: optionTo,
+                  })
+          }
         >
           <SearchBtnText>Search</SearchBtnText>
         </SearchBtn>
